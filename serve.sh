@@ -1,0 +1,1 @@
+./yii serve --docroot=web/ --port=9090

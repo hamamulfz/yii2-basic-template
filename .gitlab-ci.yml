@@ -1,0 +1,49 @@
+building:
+  only:
+    - dev
+  stage: build
+  tags:
+    - kcic-sikk-api-dev
+  script:
+    - echo "Begin Build Container"
+    - echo "GIT INFO"
+    - git log -1
+    - echo "Server Info"
+    - curl ifconfig.me
+    - pwd
+    - sudo rsync -av --delete --exclude-from '/home/gitlab-runner/exclude.txt' $CI_PROJECT_DIR/ /opt/app/KCIC/sikk/sikk-api/
+    # - rm -rf $CI_PROJECT_DIR/
+    - cd /opt/app/KCIC/sikk/sikk-api
+    - sudo docker-compose stop
+    - sudo docker-compose rm -f     
+    - sudo docker-compose up -d --build
+    - sudo docker run --rm --tty --volume $PWD:/app sikk-api:v1 composer update
+    - sudo docker run --rm --tty --volume $PWD:/app sikk-api:v1 service cron start
+    - sudo docker-compose ps
+    - cd /opt/app/KCIC/sikk/sikk-api/config
+    - sudo cp db-server.php db.php
+    - sudo chmod 777 -R /opt/app/KCIC/sikk/sikk-api/web/uploads 
+    - sudo chmod 777 -R /opt/app/KCIC/sikk/sikk-api/web/storage
+
+deploying_production:
+  only:
+    - /^v0.*.*/
+  when: manual
+  stage: deploy
+  tags:
+    - kcic-sikk-Production
+  script:
+    - echo "begin build in production server"
+    - echo "GIT INFO"
+    - git log -1
+    - echo "Server Info"
+    - curl ifconfig.me
+    - pwd
+    - ./init --env=Development --overwrite=y
+    - composer install
+    - echo "Deploying in Production"
+    - sudo rsync -av --delete --exclude-from '/home/gitlab-runner/exclude.txt' $CI_PROJECT_DIR/ /var/www/html/sikk-api
+    - rm -rf $CI_PROJECT_DIR/
+    - cd /var/www/html/sikk-api
+    - sudo chmod 777 -R /var/www/html/sikk-api/web/uploads
+    - echo "Deployed Finish"
